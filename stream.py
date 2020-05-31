@@ -22,8 +22,9 @@ def video_frame(rotate, flip, enable_edges):
     # loop forever and read the current frame, resize and rotate
     while True:
         frame = vs.read()
-        frame = imutils.resize(frame, width=400)
+        frame = imutils.resize(frame, width=400, inter=cv2.INTER_NEAREST)
         frame = imutils.rotate_bound(frame, rotate)
+
         if flip:
             frame = cv2.flip(frame, 1)
 
