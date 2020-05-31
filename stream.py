@@ -35,7 +35,7 @@ def video_frame(rotate, flip, enable_edges):
 
         # write the timestamp onto the frame
         timestamp = datetime.datetime.now()
-        cv2.putText(frame, timestamp.strftime("%A %d %B %Y %I:%M:%S%p"), (5, frame.shape[0] - 5),
+        cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
         # get a lock and copy the current frame to the global frame
