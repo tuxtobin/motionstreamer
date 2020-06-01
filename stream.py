@@ -15,9 +15,9 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, enable_edges):
+def video_frame(rotate, flip, enable_edges, diff):
     # get global video stream, frame and lock
-    global vs, outputFrame, lock
+    global vs, prevFrame, currentFrame, lock
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -28,10 +28,14 @@ def video_frame(rotate, flip, enable_edges):
         if flip:
             frame = cv2.flip(frame, 1)
 
+        if diff > 0:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
         if enable_edges:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(gray, (3, 3), 0)
-            edges = cv2.Canny(blur, 50, 200)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
+            edges = cv2.Canny(gray, 50, 200)
             frame[edges == 255] = [255, 0, 0]
 
         # write the timestamp onto the frame
@@ -41,21 +45,21 @@ def video_frame(rotate, flip, enable_edges):
 
         # get a lock and copy the current frame to the global frame
         with lock:
-            outputFrame = frame.copy()
+            currentFrame = frame.copy()
 
 
 # encode the video frame to display on a web page
 def encode_frame():
     # get global frame and lock
-    global outputFrame, lock
+    global currentFrame, lock
 
     # loop forever, get the lock and if there is a frame encode it as JPEG
     # if the encoding failed then move on
     # yield the content type and encoded image as a byte string
     while True:
         with lock:
-            if outputFrame is not None:
-                (rc, encodedImage) = cv2.imencode(".jpg", outputFrame)
+            if currentFrame is not None:
+                (rc, encodedImage) = cv2.imencode(".jpg", currentFrame)
                 if not rc:
                     continue
         yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
@@ -84,14 +88,17 @@ if __name__ == '__main__':
     ap.add_argument("-r", "--rotate", type=int, default=0, required=False, help="Rotate image")
     ap.add_argument("-f", "--flip", action="store_true", default=False, required=False,
                     help="Flip image")
-    ap.add_argument("-e", "--edges", action="store_true", default=False, required=False,
-                    help="Enable edge detection")
     ap.add_argument("-v", "--version", action="version",
                     version="%(prog)s {version}".format(version=__version__))
+    sp = ap.add_mutually_exclusive_group()
+    sp.add_argument("-e", "--edges", action="store_true", default=False, required=False,
+                    help="Enable edge detection")
+    sp.add_argument("-d", "--diff", type=int, default=0, required=False,
+                    help="Detection difference between frames")
     args = vars(ap.parse_args())
 
     # store the video frame and lock
-    outputFrame = None
+    currentFrame = None
     lock = threading.Lock()
 
     # setup the video camera (switch between either pi camera or standard attached camera)
@@ -102,7 +109,8 @@ if __name__ == '__main__':
     time.sleep(2.0)
 
     # build a separate thread to manage the video stream
-    thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"], args["edges"],))
+    thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
+                                                      args["edges"], args["diff"],))
     thrd.daemon = True
     thrd.start()
 
