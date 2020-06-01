@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, enable_edges, diff):
+def video_frame(rotate, flip, enable_edges, enable_diff):
     # get global video stream, frame and lock
     global vs, prevFrame, currentFrame, lock
 
@@ -28,9 +28,17 @@ def video_frame(rotate, flip, enable_edges, diff):
         if flip:
             frame = cv2.flip(frame, 1)
 
-        if diff > 0:
+        if enable_diff:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
+            frame2 = imutils.resize(prevFrame, width=400, inter=cv2.INTER_NEAREST)
+            frame2 = imutils.rotate_bound(frame2, rotate)
+
+            gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+            gray2 = cv2.GaussianBlur(gray2, (21, 21), 0)
+
+            frame_delta = cv2.absdiff(gray, gray2)
 
         if enable_edges:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -46,6 +54,7 @@ def video_frame(rotate, flip, enable_edges, diff):
         # get a lock and copy the current frame to the global frame
         with lock:
             currentFrame = frame.copy()
+            prevFrame = currentFrame
 
 
 # encode the video frame to display on a web page
@@ -93,11 +102,12 @@ if __name__ == '__main__':
     sp = ap.add_mutually_exclusive_group()
     sp.add_argument("-e", "--edges", action="store_true", default=False, required=False,
                     help="Enable edge detection")
-    sp.add_argument("-d", "--diff", type=int, default=0, required=False,
+    sp.add_argument("-d", "--diff", action="store_true", default=False, required=False,
                     help="Detection difference between frames")
     args = vars(ap.parse_args())
 
     # store the video frame and lock
+    prevFrame = None
     currentFrame = None
     lock = threading.Lock()
 
@@ -107,6 +117,7 @@ if __name__ == '__main__':
     else:
         vs = VideoStream(src=0).start()
     time.sleep(2.0)
+    prevFrame = vs.read()
 
     # build a separate thread to manage the video stream
     thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
