@@ -8,6 +8,7 @@ import threading
 import argparse
 import time
 import datetime
+import os
 
 
 # setup flask
@@ -57,9 +58,11 @@ def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output):
             prevFrame = currentFrame
 
         if stopframe > 0:
-            path = output
-            filename = timestamp.strftime("%Y-%m-%d_%H-%I-%S") + ".jpg"
-            cv2.imwrite(path + filename, frame)
+            path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            filename = os.path.join(path, timestamp.strftime("%H-%I-%S") + ".jpg")
+            cv2.imwrite(filename, frame)
 
 
 # encode the video frame to display on a web page
