@@ -60,8 +60,8 @@ def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output):
         if stopframe > 0:
             path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
             if not os.path.isdir(path):
-                os.mkdir(path)
-            filename = os.path.join(path, timestamp.strftime("%H-%I-%S") + ".jpg")
+                os.mkdir(path, 0o644)
+            filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
             cv2.imwrite(filename, frame)
 
 
