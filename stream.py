@@ -15,14 +15,14 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, enable_edges, enable_diff):
+def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output):
     # get global video stream, frame and lock
     global vs, prevFrame, currentFrame, lock
 
     # loop forever and read the current frame, resize and rotate
     while True:
         frame = vs.read()
-        frame = imutils.resize(frame, width=400, inter=cv2.INTER_NEAREST)
+        frame = imutils.resize(frame, width=640, inter=cv2.INTER_NEAREST)
         frame = imutils.rotate_bound(frame, rotate)
 
         if flip:
@@ -55,6 +55,11 @@ def video_frame(rotate, flip, enable_edges, enable_diff):
         with lock:
             currentFrame = frame.copy()
             prevFrame = currentFrame
+
+        if stopframe > 0:
+            path = output
+            filename = timestamp.strftime("%Y-%m-%d_%H-%I-%S") + ".jpg"
+            cv2.imwrite(path + filename, frame)
 
 
 # encode the video frame to display on a web page
@@ -99,6 +104,10 @@ if __name__ == '__main__':
                     help="Flip image")
     ap.add_argument("-v", "--version", action="version",
                     version="%(prog)s {version}".format(version=__version__))
+    ap.add_argument("-s", "--stopframe", type=int, default=0, required=False,
+                    help="Stop frame capture every N second")
+    ap.add_argument("-o", "--output", type=str, default="/tmp/", required=False,
+                    help="Stop frame output path")
     sp = ap.add_mutually_exclusive_group()
     sp.add_argument("-e", "--edges", action="store_true", default=False, required=False,
                     help="Enable edge detection")
@@ -121,7 +130,8 @@ if __name__ == '__main__':
 
     # build a separate thread to manage the video stream
     thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
-                                                      args["edges"], args["diff"],))
+                                                      args["edges"], args["diff"],
+                                                      args["stopframe"], args["output"],))
     thrd.daemon = True
     thrd.start()
 
