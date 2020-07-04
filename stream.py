@@ -1,3 +1,4 @@
+from config import settings as config
 from flask import Flask
 from flask import render_template
 from flask import Response
@@ -94,7 +95,7 @@ def video_feed():
 
 
 if __name__ == '__main__':
-    __version__ = 0.1
+    __version__ = config.version
 
     # pull in arguments
     ap = argparse.ArgumentParser()
