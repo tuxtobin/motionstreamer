@@ -17,9 +17,9 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output):
+def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output, fd):
     # get global video stream, frame and lock
-    global vs, prevFrame, currentFrame, lock
+    global vs, prevFrame, currentFrame, lock, writeFlag
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -58,12 +58,23 @@ def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output):
             currentFrame = frame.copy()
             prevFrame = currentFrame
 
+        # save frame each N seconds
         if stopframe > 0:
             path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
             if not os.path.isdir(path):
                 os.mkdir(path)
             filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
             cv2.imwrite(filename, frame)
+            time.sleep(stopframe)
+
+            # write data to output device each 30 minutes
+            if int(timestamp.strftime('%M')) == 0 or int(timestamp.strftime('%M')) == 30:
+                if not writeFlag:
+                    os.fsync(fd)
+                    writeFlag = True
+            else:
+                if writeFlag:
+                    writeFlag = False
 
 
 # encode the video frame to display on a web page
@@ -112,6 +123,8 @@ if __name__ == '__main__':
                     help="Stop frame capture every N second")
     ap.add_argument("-o", "--output", type=str, default="/tmp/", required=False,
                     help="Stop frame output path")
+    ap.add_argument("-w", "--write", action="store_true", default=False, required=False,
+                    help="Destage the output directory")
     sp = ap.add_mutually_exclusive_group()
     sp.add_argument("-e", "--edges", action="store_true", default=False, required=False,
                     help="Enable edge detection")
@@ -122,7 +135,12 @@ if __name__ == '__main__':
     # store the video frame and lock
     prevFrame = None
     currentFrame = None
+    writeFlag = False
     lock = threading.Lock()
+
+    # open the output directory and store the file description for later
+    if args["write"]:
+        fd = os.open(args["output"])
 
     # setup the video camera (switch between either pi camera or standard attached camera)
     if args["picam"]:
@@ -135,7 +153,8 @@ if __name__ == '__main__':
     # build a separate thread to manage the video stream
     thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
                                                       args["edges"], args["diff"],
-                                                      args["stopframe"], args["output"],))
+                                                      args["stopframe"], args["output"],
+                                                      fd,))
     thrd.daemon = True
     thrd.start()
 
