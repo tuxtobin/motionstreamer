@@ -68,13 +68,14 @@ def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output, fd):
             time.sleep(stopframe)
 
             # write data to output device each 30 minutes
-            if int(timestamp.strftime('%M')) == 0 or int(timestamp.strftime('%M')) == 30:
-                if not writeFlag:
-                    os.fsync(fd)
-                    writeFlag = True
-            else:
-                if writeFlag:
-                    writeFlag = False
+            if fd is not None:
+                if int(timestamp.strftime('%M')) == 0 or int(timestamp.strftime('%M')) == 30:
+                    if not writeFlag:
+                        os.fsync(fd)
+                        writeFlag = True
+                else:
+                    if writeFlag:
+                        writeFlag = False
 
 
 # encode the video frame to display on a web page
@@ -137,10 +138,11 @@ if __name__ == '__main__':
     currentFrame = None
     writeFlag = False
     lock = threading.Lock()
+    fd = None
 
     # open the output directory and store the file description for later
     if args["write"]:
-        fd = os.open(args["output"])
+        fd = os.open(args["output"], os.O_DIRECTORY)
 
     # setup the video camera (switch between either pi camera or standard attached camera)
     if args["picam"]:
