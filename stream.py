@@ -1,8 +1,9 @@
-from config import settings as config
+from config import version
 from flask import Flask
 from flask import render_template
 from flask import Response
 from imutils.video import VideoStream
+from helpers.motion_detector import MotionDetector
 import imutils
 import cv2
 import threading
@@ -10,6 +11,7 @@ import argparse
 import time
 import datetime
 import os
+import configparser
 
 
 # setup flask
@@ -17,9 +19,14 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output, fd):
+def video_frame(rotate, flip, snapshot, output, bg_frames):
     # get global video stream, frame and lock
-    global vs, prevFrame, currentFrame, lock, writeFlag
+    global vs, currentFrame, lock
+
+    # instantiate motion detector (using background subtraction)
+    md = MotionDetector(accumWeight=0.1)
+    # initialise number of accumulated background frames
+    total_bg_frames = 0
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -30,52 +37,47 @@ def video_frame(rotate, flip, enable_edges, enable_diff, stopframe, output, fd):
         if flip:
             frame = cv2.flip(frame, 1)
 
-        if enable_diff:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (21, 21), 0)
-
-            frame2 = imutils.resize(prevFrame, width=400, inter=cv2.INTER_NEAREST)
-            frame2 = imutils.rotate_bound(frame2, rotate)
-
-            gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-            gray2 = cv2.GaussianBlur(gray2, (21, 21), 0)
-
-            frame_delta = cv2.absdiff(gray, gray2)
-
-        if enable_edges:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (21, 21), 0)
-            edges = cv2.Canny(gray, 50, 200)
-            frame[edges == 255] = [255, 0, 0]
+        # convert to gray scale for motion detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
         # write the timestamp onto the frame
         timestamp = datetime.datetime.now()
         cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
+        # if there are sufficient frames start looking for motion
+        if total_bg_frames > bg_frames:
+            # check for motion
+            motion = md.detect(gray)
+
+            # if there was sufficient change then draw the bounding box around it
+            # save the image
+            if motion is not None:
+                (thresh, (minX, minY, maxX, maxY)) = motion
+                cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
+                path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
+                cv2.imwrite(filename, frame)
+
+        # update the background
+        md.update(gray)
+        total_bg_frames += 1
+
         # get a lock and copy the current frame to the global frame
         with lock:
             currentFrame = frame.copy()
-            prevFrame = currentFrame
 
-        # save frame each N seconds
-        if stopframe > 0:
+        # save frame each N seconds (only if not using motion detection)
+        if snapshot > 0:
             path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
             if not os.path.isdir(path):
                 os.mkdir(path)
             filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
             cv2.imwrite(filename, frame)
-            time.sleep(stopframe)
-
-            # write data to output device each 30 minutes
-            if fd is not None:
-                if int(timestamp.strftime('%M')) == 0 or int(timestamp.strftime('%M')) == 30:
-                    if not writeFlag:
-                        os.fsync(fd)
-                        writeFlag = True
-                else:
-                    if writeFlag:
-                        writeFlag = False
+            time.sleep(snapshot)
 
 
 # encode the video frame to display on a web page
@@ -107,45 +109,32 @@ def video_feed():
 
 
 if __name__ == '__main__':
-    __version__ = config.version
+    __version__ = version.version
 
     # pull in arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--ip", type=str, default="127.0.0.1", required=False, help="IP address of server")
-    ap.add_argument("-p", "--port", type=int, default=8888, required=False, help="Port of server")
-    ap.add_argument("-c", "--picam", action="store_true", default=False, required=False,
-                    help="Enable Pi Camera")
-    ap.add_argument("-r", "--rotate", type=int, default=0, required=False, help="Rotate image")
-    ap.add_argument("-f", "--flip", action="store_true", default=False, required=False,
-                    help="Flip image")
     ap.add_argument("-v", "--version", action="version",
                     version="%(prog)s {version}".format(version=__version__))
-    ap.add_argument("-s", "--stopframe", type=int, default=0, required=False,
-                    help="Stop frame capture every N second")
-    ap.add_argument("-o", "--output", type=str, default="/tmp/", required=False,
-                    help="Stop frame output path")
-    ap.add_argument("-w", "--write", action="store_true", default=False, required=False,
-                    help="Destage the output directory")
-    sp = ap.add_mutually_exclusive_group()
-    sp.add_argument("-e", "--edges", action="store_true", default=False, required=False,
-                    help="Enable edge detection")
-    sp.add_argument("-d", "--diff", action="store_true", default=False, required=False,
-                    help="Detection difference between frames")
     args = vars(ap.parse_args())
 
-    # store the video frame and lock
-    prevFrame = None
-    currentFrame = None
-    writeFlag = False
-    lock = threading.Lock()
-    fd = None
+    # read in configuration settings
+    config = configparser.ConfigParser()
+    config.read("config\\settings.ini")
+    cfg = dict(config.items("MAIN"))
 
-    # open the output directory and store the file description for later
-    if args["write"]:
-        fd = os.open(args["output"], os.O_DIRECTORY)
+    # store the video frame and lock
+    currentFrame = None
+    lock = threading.Lock()
+
+    # if motion detection is enabled then disable snapshot processing
+    if cfg["detect"]:
+        cfg["snapshot"] = 0
+    else:
+        if "snapshot" not in cfg or not isinstance(cfg["snapshot"], int):
+            cfg["snapshot"] = 0
 
     # setup the video camera (switch between either pi camera or standard attached camera)
-    if args["picam"]:
+    if cfg["picam"]:
         vs = VideoStream(usePiCamera=True).start()
     else:
         vs = VideoStream(src=0).start()
@@ -153,10 +142,9 @@ if __name__ == '__main__':
     prevFrame = vs.read()
 
     # build a separate thread to manage the video stream
-    thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
-                                                      args["edges"], args["diff"],
-                                                      args["stopframe"], args["output"],
-                                                      fd,))
+    thrd = threading.Thread(target=video_frame, args=(cfg["rotate"], cfg["flip"],
+                                                      cfg["snapshot"], cfg["output"],
+                                                      cfg["bg_frames"],))
     thrd.daemon = True
     thrd.start()
 
@@ -164,6 +152,6 @@ if __name__ == '__main__':
     # debug - enable debugging by default
     # threaded - each request is a handled by a separate thread
     # use_reloader - don't reload server should any module change (on by default if debug is true)
-    app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
+    app.run(host=cfg["ip"], port=cfg["port"], debug=True, threaded=True, use_reloader=False)
 
     vs.stop()
