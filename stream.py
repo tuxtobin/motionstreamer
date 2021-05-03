@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 
 # read the video stream
-def video_frame(rotate, flip, snapshot, output, bg_frames):
+def video_frame(rotate, flip, output, sub_cmd, sub_val):
     # get global video stream, frame and lock
     global vs, currentFrame, lock
 
@@ -45,38 +45,40 @@ def video_frame(rotate, flip, snapshot, output, bg_frames):
         cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
-        # if there are sufficient frames start looking for motion
-        if total_bg_frames > bg_frames:
-            # check for motion
-            motion = md.detect(gray)
+        if sub_cmd == "detect":
+            # if there are sufficient frames start looking for motion
+            if total_bg_frames > sub_val:
+                # check for motion
+                motion = md.detect(gray)
 
-            # if there was sufficient change then draw the bounding box around it
-            # save the image
-            if motion is not None:
-                (thresh, (minX, minY, maxX, maxY)) = motion
-                cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
+                # if there was sufficient change then draw the bounding box around it
+                # save the image
+                if motion is not None:
+                    (thresh, (minX, minY, maxX, maxY)) = motion
+                    cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
+                    path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
+                    if not os.path.isdir(path):
+                        os.mkdir(path)
+                    filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
+                    cv2.imwrite(filename, frame)
+
+            # update the background
+            md.update(gray)
+            total_bg_frames += 1
+
+        if sub_cmd == "snapshot":
+            # save frame each N seconds (only if not using motion detection)
+            if sub_val > 0:
                 path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
                 if not os.path.isdir(path):
                     os.mkdir(path)
                 filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
                 cv2.imwrite(filename, frame)
-
-        # update the background
-        md.update(gray)
-        total_bg_frames += 1
+                time.sleep(sub_val)
 
         # get a lock and copy the current frame to the global frame
         with lock:
             currentFrame = frame.copy()
-
-        # save frame each N seconds (only if not using motion detection)
-        if snapshot > 0:
-            path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
-            if not os.path.isdir(path):
-                os.mkdir(path)
-            filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
-            cv2.imwrite(filename, frame)
-            time.sleep(snapshot)
 
 
 # encode the video frame to display on a web page
@@ -123,12 +125,21 @@ if __name__ == '__main__':
                     version="%(prog)s {version}".format(version=__version__))
     ap.add_argument("-o", "--output", type=str, default="/tmp/", required=False,
                     help="Stop frame output path")
-    sp = ap.add_mutually_exclusive_group()
-    ap.add_argument("-s", "--snapshot", type=int, default=0, required=False,
-                    help="Take a snapshot every N second (0 is off)")
-    sp.add_argument("-d", "--detect", action="store_true", default=False, required=False,
-                    help="Enable motion detection")
+    sp = ap.add_subparsers(dest="subcommand")
+    sp1 = sp.add_parser("snapshot", help="Take a snapshot every N second")
+    sp1.add_argument("-q", "--frequency", type=int, default=0, required=False,
+                     help="Frequency of snapshots (default is off")
+    sp2 = sp.add_parser("detect", help="Enable motion detection")
+    sp2.add_argument("-b", "--background", type=int, default=32, required=False, help="Number of background frames")
     args = vars(ap.parse_args())
+
+    sub_value = 0
+    if args["subcommand"] == "snapshot":
+        sub_value = args["frequency"]
+    elif args["subcommand"] == "detect":
+        sub_value = args["background"]
+    else:
+        sub_value = 0
 
     # store the video frame and lock
     currentFrame = None
@@ -144,8 +155,8 @@ if __name__ == '__main__':
 
     # build a separate thread to manage the video stream
     thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
-                                                      args["snapshot"], args["output"],
-                                                      32,))
+                                                      args["output"], args["subcommand"],
+                                                      sub_value,))
     thrd.daemon = True
     thrd.start()
 
