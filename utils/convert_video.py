@@ -1,4 +1,4 @@
-from config import settings as config
+from config import version
 from imutils import paths
 import argparse
 import os
@@ -6,7 +6,7 @@ import imageio
 
 
 if __name__ == '__main__':
-    __version__ = config.version
+    __version__ = version.version
 
     # pull in arguments
     ap = argparse.ArgumentParser()
