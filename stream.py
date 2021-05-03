@@ -11,7 +11,6 @@ import argparse
 import time
 import datetime
 import os
-import configparser
 
 
 # setup flask
@@ -113,28 +112,30 @@ if __name__ == '__main__':
 
     # pull in arguments
     ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--ip", type=str, default="127.0.0.1", required=False, help="IP address of server")
+    ap.add_argument("-p", "--port", type=int, default=8888, required=False, help="Port of server")
+    ap.add_argument("-c", "--picam", action="store_true", default=False, required=False,
+                    help="Enable Pi Camera")
+    ap.add_argument("-r", "--rotate", type=int, default=0, required=False, help="Rotate image")
+    ap.add_argument("-f", "--flip", action="store_true", default=False, required=False,
+                    help="Flip image")
     ap.add_argument("-v", "--version", action="version",
                     version="%(prog)s {version}".format(version=__version__))
+    ap.add_argument("-o", "--output", type=str, default="/tmp/", required=False,
+                    help="Stop frame output path")
+    sp = ap.add_mutually_exclusive_group()
+    ap.add_argument("-s", "--snapshot", type=int, default=0, required=False,
+                    help="Take a snapshot every N second (0 is off)")
+    sp.add_argument("-d", "--detect", action="store_true", default=False, required=False,
+                    help="Enable motion detection")
     args = vars(ap.parse_args())
-
-    # read in configuration settings
-    config = configparser.ConfigParser()
-    config.read("config\\settings.ini")
-    cfg = dict(config.items("MAIN"))
 
     # store the video frame and lock
     currentFrame = None
     lock = threading.Lock()
 
-    # if motion detection is enabled then disable snapshot processing
-    if cfg["detect"]:
-        cfg["snapshot"] = 0
-    else:
-        if "snapshot" not in cfg or not isinstance(cfg["snapshot"], int):
-            cfg["snapshot"] = 0
-
     # setup the video camera (switch between either pi camera or standard attached camera)
-    if cfg["picam"]:
+    if args["picam"]:
         vs = VideoStream(usePiCamera=True).start()
     else:
         vs = VideoStream(src=0).start()
@@ -142,9 +143,9 @@ if __name__ == '__main__':
     prevFrame = vs.read()
 
     # build a separate thread to manage the video stream
-    thrd = threading.Thread(target=video_frame, args=(cfg["rotate"], cfg["flip"],
-                                                      cfg["snapshot"], cfg["output"],
-                                                      cfg["bg_frames"],))
+    thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
+                                                      args["snapshot"], args["output"],
+                                                      32,))
     thrd.daemon = True
     thrd.start()
 
@@ -152,6 +153,6 @@ if __name__ == '__main__':
     # debug - enable debugging by default
     # threaded - each request is a handled by a separate thread
     # use_reloader - don't reload server should any module change (on by default if debug is true)
-    app.run(host=cfg["ip"], port=cfg["port"], debug=True, threaded=True, use_reloader=False)
+    app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
 
     vs.stop()
