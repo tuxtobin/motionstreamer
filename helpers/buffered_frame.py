@@ -5,7 +5,7 @@ import time
 import cv2
 
 
-class BufferedWrite:
+class BufferedFrame:
     def __init__(self, buffer_size=64, timeout=1.0):
         self.bufferSize = buffer_size
         self.timeout = timeout
