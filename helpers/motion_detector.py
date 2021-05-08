@@ -4,8 +4,8 @@ import cv2
 
 
 class MotionDetector:
-    def __init__(self, accumWeight=0.5):
-        self.accumWeight = accumWeight
+    def __init__(self, accum_weight=0.5):
+        self.accum_weight = accum_weight
         self.bg = None
 
     def update(self, image):
@@ -13,11 +13,11 @@ class MotionDetector:
             self.bg = image.copy().astype("float")
             return
 
-        cv2.accumulateWeighted(image, self.bg, self.accumWeight)
+        cv2.accumulateWeighted(image, self.bg, self.accum_weight)
 
-    def detect(self, image, tVal=25):
+    def detect(self, image, tval=25):
         delta = cv2.absdiff(self.bg.astype("uint8"), image)
-        thresh = cv2.threshold(delta, tVal, 255, cv2.THRESH_BINARY)[1]
+        thresh = cv2.threshold(delta, tval, 255, cv2.THRESH_BINARY)[1]
 
         thresh = cv2.erode(thresh, None, iterations=2)
         thresh = cv2.dilate(thresh, None, iterations=2)
@@ -35,4 +35,4 @@ class MotionDetector:
             (minX, minY) = (min(minX, x), min(minY, y))
             (maxX, maxY) = (max(maxX, x + w), max(maxY, y + h))
 
-        return (thresh, (minX, minY, maxX, maxY))
+        return thresh, (minX, minY, maxX, maxY)
