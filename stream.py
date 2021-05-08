@@ -4,6 +4,7 @@ from flask import render_template
 from flask import Response
 from imutils.video import VideoStream
 from helpers.motion_detector import MotionDetector
+from helpers.buffered_frame import BufferedFrame
 import imutils
 import cv2
 import threading
@@ -17,15 +18,90 @@ import os
 app = Flask(__name__)
 
 
-# read the video stream
-def video_frame(rotate, flip, output, sub_cmd, sub_val):
+# detector - read the video stream
+def detector_video_frame(rotate, flip, output, background, buffer_size, min_area):
     # get global video stream, frame and lock
     global vs, currentFrame, lock
 
+    # initialise the buffered frame class and number of continuous frames
+    bf = BufferedFrame(buffer_size)
+    cont_frames = 0
     # instantiate motion detector (using background subtraction)
-    md = MotionDetector(accumWeight=0.1)
+    md = MotionDetector(accum_weight=0.1)
     # initialise number of accumulated background frames
     total_bg_frames = 0
+
+    # loop forever and read the current frame, resize and rotate
+    while True:
+        frame = vs.read()
+        frame = imutils.resize(frame, width=640, inter=cv2.INTER_NEAREST)
+        frame = imutils.rotate_bound(frame, rotate)
+
+        # initialise flag to update the continuous frame counter
+        update_cont_frames = True
+
+        # flip frame if requested
+        if flip:
+            frame = cv2.flip(frame, 1)
+            
+        # convert to gray scale for motion detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (7, 7), 0)
+
+        # write the timestamp onto the frame
+        timestamp = datetime.datetime.now()
+        cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
+
+        # if there are sufficient frames start looking for motion
+        if total_bg_frames > background:
+            # check for motion
+            motion = md.detect(gray)
+
+            # if there was sufficient change then draw the bounding box around it
+            # save the image
+            if motion is not None:
+                (thresh, (minX, minY, maxX, maxY)) = motion
+                # check if the motion meets the minimum area
+                update_cont_frames = ((maxX - minX) * (maxY - minY)) >= min_area
+                if update_cont_frames:
+                    # reset the period of motion
+                    cont_frames = 0
+                    # draw a rectangle around the area of disturbance
+                    cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
+
+                    # if not recording, then start
+                    if not bf.recording:
+                        path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
+                        if not os.path.isdir(path):
+                            os.mkdir(path)
+                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG', 32))
+
+        # if there had been movement increment continuous frame counter
+        if update_cont_frames:
+            cont_frames += 1
+
+        # update frame buffer
+        bf.update(frame)
+
+        # if still recording and the continuous frames meets the buffer size then stop
+        if bf.recording and cont_frames == buffer_size:
+            bf.finish()
+
+        # update the background
+        md.update(gray)
+        total_bg_frames += 1
+
+        # get a lock and copy the current frame to the global frame
+        with lock:
+            currentFrame = frame.copy()
+
+
+# snapshot - read the video stream
+def snapshot_video_frame(rotate, flip, output, frequency):
+    # get global video stream, frame and lock
+    global vs, currentFrame, lock
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -36,45 +112,19 @@ def video_frame(rotate, flip, output, sub_cmd, sub_val):
         if flip:
             frame = cv2.flip(frame, 1)
 
-        # convert to gray scale for motion detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (7, 7), 0)
-
         # write the timestamp onto the frame
         timestamp = datetime.datetime.now()
         cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
-        if sub_cmd == "detect":
-            # if there are sufficient frames start looking for motion
-            if total_bg_frames > sub_val:
-                # check for motion
-                motion = md.detect(gray)
-
-                # if there was sufficient change then draw the bounding box around it
-                # save the image
-                if motion is not None:
-                    (thresh, (minX, minY, maxX, maxY)) = motion
-                    cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
-                    path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
-                    if not os.path.isdir(path):
-                        os.mkdir(path)
-                    filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
-                    cv2.imwrite(filename, frame)
-
-            # update the background
-            md.update(gray)
-            total_bg_frames += 1
-
-        if sub_cmd == "snapshot":
-            # save frame each N seconds (only if not using motion detection)
-            if sub_val > 0:
-                path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
-                if not os.path.isdir(path):
-                    os.mkdir(path)
-                filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
-                cv2.imwrite(filename, frame)
-                time.sleep(sub_val)
+        # save frame each N seconds (only if not using motion detection)
+        if frequency > 0:
+            path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
+            cv2.imwrite(filename, frame)
+            time.sleep(frequency)
 
         # get a lock and copy the current frame to the global frame
         with lock:
@@ -131,15 +181,9 @@ if __name__ == '__main__':
                      help="Frequency of snapshots (default is off")
     sp2 = sp.add_parser("detect", help="Enable motion detection")
     sp2.add_argument("-b", "--background", type=int, default=32, required=False, help="Number of background frames")
+    sp2.add_argument("-s", "--buffer", type=int, default=64, required=False, help="Number of frames to buffer")
+    sp2.add_argument("-a", "--area", type=int, default=10000, required=False, help="Minimum area for motion event")
     args = vars(ap.parse_args())
-
-    sub_value = 0
-    if args["subcommand"] == "snapshot":
-        sub_value = args["frequency"]
-    elif args["subcommand"] == "detect":
-        sub_value = args["background"]
-    else:
-        sub_value = 0
 
     # store the video frame and lock
     currentFrame = None
@@ -153,10 +197,15 @@ if __name__ == '__main__':
     time.sleep(2.0)
     prevFrame = vs.read()
 
-    # build a separate thread to manage the video stream
-    thrd = threading.Thread(target=video_frame, args=(args["rotate"], args["flip"],
-                                                      args["output"], args["subcommand"],
-                                                      sub_value,))
+    # build a separate thread to manage the video streams
+    if args["subcommand"] == "snapshot":
+        thrd = threading.Thread(target=snapshot_video_frame, args=(args["rotate"], args["flip"],
+                                                                   args["output"], args["frequency"],))
+    elif args["subcommand"] == "detect":
+        thrd = threading.Thread(target=detector_video_frame, args=(args["rotate"], args["flip"],
+                                                                   args["output"], args["background"],
+                                                                   args["buffer"], args["area"],))
+
     thrd.daemon = True
     thrd.start()
 
