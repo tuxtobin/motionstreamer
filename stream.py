@@ -51,6 +51,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     bf = BufferedFrame(buffer_size)
     cont_frames = 0
     # instantiate motion detector (using background subtraction)
+    print(hidden_area)
     md = MotionDetector(accum_weight=0.1, x1=hidden_area[0], y1=hidden_area[1],
                         x2=hidden_area[2], y2=hidden_area[3])
     # initialise number of accumulated background frames
