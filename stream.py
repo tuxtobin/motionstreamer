@@ -12,14 +12,38 @@ import argparse
 import time
 import datetime
 import os
+import signal
+import sys
+import configparser
 
 
 # setup flask
 app = Flask(__name__)
 
 
+# signal detector
+def signal_handler(sig, frame):
+    if bf.recording:
+        bf.finish()
+
+    vs.stop()
+    sys.exit(0)
+
+
+# read configuration file
+def read_config(config_file):
+    config = {}
+    cp = configparser.ConfigParser()
+    cp.read(config_file)
+    for section in cp.sections():
+        for key in cp[section]:
+            config[key] = cp[section][key]
+
+    return config
+
+
 # detector - read the video stream
-def detector_video_frame(rotate, flip, output, background, buffer_size, min_area):
+def detector_video_frame(rotate, flip, output, background, buffer_size, min_area, hidden_area):
     # get global video stream, frame and lock
     global vs, currentFrame, lock
 
@@ -27,7 +51,8 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     bf = BufferedFrame(buffer_size)
     cont_frames = 0
     # instantiate motion detector (using background subtraction)
-    md = MotionDetector(accum_weight=0.1)
+    md = MotionDetector(accum_weight=0.1, x1=hidden_area[0], y1=hidden_area[1],
+                        x2=hidden_area[2], y2=hidden_area[3])
     # initialise number of accumulated background frames
     total_bg_frames = 0
 
@@ -183,7 +208,12 @@ if __name__ == '__main__':
     sp2.add_argument("-b", "--background", type=int, default=32, required=False, help="Number of background frames")
     sp2.add_argument("-s", "--buffer", type=int, default=64, required=False, help="Number of frames to buffer")
     sp2.add_argument("-a", "--area", type=int, default=10000, required=False, help="Minimum area for motion event")
+    sp2.add_argument("-h", "--hidden", type=int, nargs='+', required=False, help="Area to hidden from motion detection")
     args = vars(ap.parse_args())
+    args["hidden"] = tuple(args["hidden"])
+
+    # begin capturing signals
+    signal.signal(signal.SIGINT, signal_handler)
 
     # store the video frame and lock
     currentFrame = None
@@ -204,7 +234,8 @@ if __name__ == '__main__':
     elif args["subcommand"] == "detect":
         thrd = threading.Thread(target=detector_video_frame, args=(args["rotate"], args["flip"],
                                                                    args["output"], args["background"],
-                                                                   args["buffer"], args["area"],))
+                                                                   args["buffer"], args["area"],
+                                                                   args["hidden"],))
 
     thrd.daemon = True
     thrd.start()
@@ -214,5 +245,3 @@ if __name__ == '__main__':
     # threaded - each request is a handled by a separate thread
     # use_reloader - don't reload server should any module change (on by default if debug is true)
     app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
-
-    vs.stop()
