@@ -224,7 +224,6 @@ if __name__ == '__main__':
     sp2.add_argument("-a", "--area", type=int, default=10000, required=False, help="Minimum area for motion event")
     sp2.add_argument("-d", "--hidden", type=int, nargs='+', required=False, help="Area to hidden from motion detection")
     args = vars(ap.parse_args())
-    args["hidden"] = tuple(args["hidden"])
 
     # begin capturing signals
     signal.signal(signal.SIGINT, signal_handler)
@@ -247,6 +246,7 @@ if __name__ == '__main__':
         thrd = threading.Thread(target=snapshot_video_frame, args=(args["rotate"], args["flip"],
                                                                    args["output"], args["frequency"],))
     elif args["subcommand"] == "detect":
+        args["hidden"] = tuple(args["hidden"])
         thrd = threading.Thread(target=detector_video_frame, args=(args["rotate"], args["flip"],
                                                                    args["output"], args["background"],
                                                                    args["buffer"], args["area"],
