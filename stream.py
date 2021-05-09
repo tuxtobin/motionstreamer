@@ -15,10 +15,12 @@ import os
 import signal
 import sys
 import configparser
+import numpy as np
 
 
 # setup flask
 app = Flask(__name__)
+debug = False
 
 
 # signal detector
@@ -78,6 +80,9 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         cv2.putText(frame, timestamp.strftime("%a %d %B %Y %H:%M:%S"), (5, frame.shape[0] - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
+        if debug:
+            cv2.rectangle(frame, (hidden_area[0], hidden_area[1]), (hidden_area[2], hidden_area[3]), (255, 0, 0), 1)
+
         # if there are sufficient frames start looking for motion
         if total_bg_frames > background:
             # check for motion
@@ -101,8 +106,8 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         if not os.path.isdir(path):
                             os.mkdir(path)
                         filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
-                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 28)
-                        print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 3)
+                        print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # if there had been movement increment continuous frame counter
         if update_cont_frames:
@@ -122,7 +127,10 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
 
         # get a lock and copy the current frame to the global frame
         with lock:
-            currentFrame = frame.copy()
+            if debug:
+                currentFrame = np.concatenate((frame.copy(), thresh.copy()), axis=1)
+            else:
+                currentFrame = frame.copy()
 
 
 # snapshot - read the video stream
