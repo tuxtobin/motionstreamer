@@ -94,7 +94,6 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                     cont_frames = 0
                     # draw a rectangle around the area of disturbance
                     cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
-                    cv2.rectangle(frame, (hidden_area[0], hidden_area[1]), (hidden_area[2], hidden_area[3], (255, 0, 0), 2))
 
                     # if not recording, then start
                     if not bf.recording:
