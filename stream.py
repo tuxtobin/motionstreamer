@@ -58,7 +58,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     # initialise number of accumulated background frames
     total_bg_frames = 0
 
-    thresh = np.ones((480, 640, 3), np.uint8)
+    thresh = np.zeros((480, 640, 3), np.uint8)
 
     # loop forever and read the current frame, resize and rotate
     while True:
