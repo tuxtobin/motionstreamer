@@ -208,7 +208,7 @@ if __name__ == '__main__':
     sp2.add_argument("-b", "--background", type=int, default=32, required=False, help="Number of background frames")
     sp2.add_argument("-s", "--buffer", type=int, default=64, required=False, help="Number of frames to buffer")
     sp2.add_argument("-a", "--area", type=int, default=10000, required=False, help="Minimum area for motion event")
-    sp2.add_argument("-h", "--hidden", type=int, nargs='+', required=False, help="Area to hidden from motion detection")
+    sp2.add_argument("-d", "--hidden", type=int, nargs='+', required=False, help="Area to hidden from motion detection")
     args = vars(ap.parse_args())
     args["hidden"] = tuple(args["hidden"])
 
