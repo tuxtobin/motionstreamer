@@ -45,7 +45,7 @@ def read_config(config_file):
 # detector - read the video stream
 def detector_video_frame(rotate, flip, output, background, buffer_size, min_area, hidden_area):
     # get global video stream, frame and lock
-    global vs, currentFrame, lock
+    global vs, currentFrame, lock, bf
 
     # initialise the buffered frame class and number of continuous frames
     bf = BufferedFrame(buffer_size)
@@ -218,6 +218,7 @@ if __name__ == '__main__':
     # store the video frame and lock
     currentFrame = None
     lock = threading.Lock()
+    bf = None
 
     # setup the video camera (switch between either pi camera or standard attached camera)
     if args["picam"]:
