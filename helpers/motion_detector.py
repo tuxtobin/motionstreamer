@@ -36,7 +36,7 @@ class MotionDetector:
         for c in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
             if self.x1 <= x <= self.x2 and self.y1 <= y <= self.y2:
-                bound = False
+                continue
             else:
                 (minX, minY) = (min(minX, x), min(minY, y))
                 (maxX, maxY) = (max(maxX, x + w), max(maxY, y + h))
