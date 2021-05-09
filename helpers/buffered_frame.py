@@ -23,7 +23,6 @@ class BufferedFrame:
             self.queue.put(frame)
 
     def start(self, output_path, fourcc, fps):
-        print("Start Recording")
         self.recording = True
         self.writer = cv2.VideoWriter(output_path, fourcc, fps,
                                       (self.frames[0].shape[1], self.frames[0].shape[0]), True)
@@ -57,4 +56,3 @@ class BufferedFrame:
         self.thread.join()
         self.flush()
         self.writer.release()
-        print("Stopped Recording")

@@ -102,6 +102,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                             os.mkdir(path)
                         filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
                         bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 32)
+                        print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
 
         # if there had been movement increment continuous frame counter
         if update_cont_frames:
@@ -113,6 +114,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         # if still recording and the continuous frames meets the buffer size then stop
         if bf.recording and cont_frames == buffer_size:
             bf.finish()
+            print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
 
         # update the background
         md.update(gray)
