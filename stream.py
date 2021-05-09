@@ -127,13 +127,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
 
         # get a lock and copy the current frame to the global frame
         with lock:
-            if debug:
-                if update_cont_frames:
-                    currentFrame = np.concatenate((frame.copy(), thresh.copy()), axis=1)
-                else:
-                    currentFrame = frame.copy()
-            else:
-                currentFrame = frame.copy()
+            currentFrame = frame.copy()
 
 
 # snapshot - read the video stream
