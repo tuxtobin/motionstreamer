@@ -94,6 +94,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                     cont_frames = 0
                     # draw a rectangle around the area of disturbance
                     cv2.rectangle(frame, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
+                    cv2.rectangle(frame, (hidden_area[0], hidden_area[1]), (hidden_area[2], hidden_area[3], (255, 0, 0), 2))
 
                     # if not recording, then start
                     if not bf.recording:
@@ -101,7 +102,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         if not os.path.isdir(path):
                             os.mkdir(path)
                         filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
-                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 32)
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 28)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
 
         # if there had been movement increment continuous frame counter
