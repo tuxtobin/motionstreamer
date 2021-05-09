@@ -83,7 +83,9 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                     cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
 
         if debug:
-            cv2.rectangle(frame, (hidden_area[0], hidden_area[1]), (hidden_area[2], hidden_area[3]), (255, 0, 0), 1)
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (hidden_area[0], hidden_area[1]), (hidden_area[2], hidden_area[3]), (0, 0, 255), -1)
+            cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
 
         # if there are sufficient frames start looking for motion
         if total_bg_frames > background:
