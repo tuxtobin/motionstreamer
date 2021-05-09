@@ -58,7 +58,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     # initialise number of accumulated background frames
     total_bg_frames = 0
 
-    thresh = np.zeros((480, 640), np.uint8)
+    thresh = np.ones((480, 640, 3), np.uint8)
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -130,7 +130,6 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         # get a lock and copy the current frame to the global frame
         with lock:
             if debug:
-                thresh = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
                 currentFrame = np.concatenate((frame.copy(), thresh.copy()), axis=1)
             else:
                 currentFrame = frame.copy()
