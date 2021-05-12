@@ -61,6 +61,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     total_bg_frames = 0
 
     thresh = np.zeros((480, 640, 3), np.uint8)
+    filename = ""
 
     # loop forever and read the current frame, resize and rotate
     while True:
@@ -126,6 +127,9 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         if bf.recording and cont_frames == buffer_size:
             bf.finish()
             print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
+            fd = os.open(filename, os.OS_RDONLY)
+            os.fsync(fd)
+            os.close(fd)
 
         # update the background
         md.update(gray)
