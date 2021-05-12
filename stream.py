@@ -27,6 +27,8 @@ debug = False
 def signal_handler(sig, frame):
     if bf.recording:
         bf.finish()
+        timestamp = datetime.datetime.now()
+        print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
 
     vs.stop()
     sys.exit(0)
@@ -53,7 +55,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
     bf = BufferedFrame(buffer_size)
     cont_frames = 0
     # instantiate motion detector (using background subtraction)
-    md = MotionDetector(accum_weight=0.1, x1=hidden_area[0], y1=hidden_area[1],
+    md = MotionDetector(accum_weight=0.5, x1=hidden_area[0], y1=hidden_area[1],
                         x2=hidden_area[2], y2=hidden_area[3])
     # initialise number of accumulated background frames
     total_bg_frames = 0
@@ -132,7 +134,13 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         # get a lock and copy the current frame to the global frame
         with lock:
             if debug:
-                currentFrame = np.concatenate((frame.copy(), thresh.copy()), axis=1)
+                thresh_frame = thresh.copy()
+                if len(thresh.shape) == 2:
+                    thresh_frame = np.zeros((480, 640, 3), np.uint8)
+                    thresh_frame[:, :, 0] = thresh
+                    thresh_frame[:, :, 1] = thresh
+                    thresh_frame[:, :, 2] = thresh
+                currentFrame = np.concatenate((frame.copy(), thresh_frame), axis=1)
             else:
                 currentFrame = frame.copy()
 
