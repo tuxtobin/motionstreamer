@@ -9,10 +9,10 @@ class BufferedFrame:
     def __init__(self, buffer_size=64, timeout=1.0):
         self.bufferSize = buffer_size
         self.timeout = timeout
-
+        self.output = ""
+        self.counter = -1
         self.frames = deque(maxlen=buffer_size)
         self.queue = None
-        self.writer = None
         self.thread = None
         self.recording = False
 
@@ -22,11 +22,10 @@ class BufferedFrame:
         if self.recording:
             self.queue.put(frame)
 
-    def start(self, output_path, fourcc, fps):
+    def start(self, output):
         self.recording = True
-        self.writer = cv2.VideoWriter(output_path, fourcc, fps,
-                                      (self.frames[0].shape[1], self.frames[0].shape[0]), True)
         self.queue = Queue()
+        self.output = output
 
         for i in range(len(self.frames), 0, -1):
             self.queue.put(self.frames[i - 1])
@@ -42,17 +41,21 @@ class BufferedFrame:
 
             if not self.queue.empty():
                 frame = self.queue.get()
-                self.writer.write(frame)
+                self.counter += 1
+                filename = self.output + "_" + str(self.counter) + ".jpg"
+                cv2.imwrite(filename, frame)
             else:
                 time.sleep(self.timeout)
 
     def flush(self):
         while not self.queue.empty():
             frame = self.queue.get()
-            self.writer.write(frame)
+            self.counter += 1
+            filename = self.output + "_" + str(self.counter) + ".jpg"
+            cv2.imwrite(filename, frame)
 
     def finish(self):
         self.recording = False
         self.thread.join()
         self.flush()
-        self.writer.release()
+        self.counter = -1

@@ -112,8 +112,8 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
                         if not os.path.isdir(path):
                             os.mkdir(path)
-                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
-                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 3)
+                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S"))
+                        bf.start(filename)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # if there had been movement increment continuous frame counter
@@ -127,9 +127,6 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         if bf.recording and cont_frames == buffer_size:
             bf.finish()
             print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
-            fd = os.open(filename, os.OS_RDONLY)
-            os.fsync(fd)
-            os.close(fd)
 
         # update the background
         md.update(gray)
