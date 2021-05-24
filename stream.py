@@ -112,7 +112,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
                         if not os.path.isdir(path):
                             os.mkdir(path)
-                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S"))
+                        filename = os.path.join(path, "detect_" + timestamp.strftime("%H-%M-%S"))
                         bf.start(filename)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
@@ -170,7 +170,7 @@ def snapshot_video_frame(rotate, flip, output, frequency):
             path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
             if not os.path.isdir(path):
                 os.mkdir(path)
-            filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".jpg")
+            filename = os.path.join(path, "snapshot_" + timestamp.strftime("%H-%M-%S") + ".jpg")
             cv2.imwrite(filename, frame)
             time.sleep(frequency)
 
