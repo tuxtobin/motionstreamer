@@ -173,6 +173,9 @@ def snapshot_video_frame(rotate, flip, output, frequency):
             path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
             if not os.path.isdir(path):
                 os.mkdir(path)
+            path = os.path.join(path, "snapshot_" + timestamp.strftime("%H") + "h")
+            if not os.path.isdir(path):
+                os.mkdir(path)
             filename = os.path.join(path, "snapshot_" + timestamp.strftime("%H-%M-%S") + ".jpg")
             cv2.imwrite(filename, frame)
             time.sleep(frequency)
