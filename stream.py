@@ -115,8 +115,8 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         path = os.path.join(path, "detect_" + timestamp.strftime("%H-%M-%S"))
                         if not os.path.isdir(path):
                             os.mkdir(path)
-                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S"))
-                        bf.start(filename)
+                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 3)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # if there had been movement increment continuous frame counter
@@ -129,7 +129,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
         # if still recording and the continuous frames meets the buffer size then stop
         if bf.recording and cont_frames == buffer_size:
             bf.finish()
-            print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H-%M-%S")))
+            print("{} - Stop Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # update the background
         md.update(gray)
@@ -152,7 +152,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
 # snapshot - read the video stream
 def snapshot_video_frame(rotate, flip, output, frequency):
     # get global video stream, frame and lock
-    global vs, currentFrame, lock
+    global vs, currentFrame, lock, bf
 
     # loop forever and read the current frame, resize and rotate
     while True:
