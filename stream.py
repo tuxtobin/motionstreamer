@@ -116,7 +116,7 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         if not os.path.isdir(path):
                             os.mkdir(path)
                         filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
-                        bf.start(filename, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 3)
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 3)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # if there had been movement increment continuous frame counter

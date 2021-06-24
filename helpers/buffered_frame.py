@@ -23,8 +23,8 @@ class BufferedFrame:
 
     def start(self, output, fourcc, fps):
         self.recording = True
-        self.writer - cv2.VideoWriter(output, fourcc, fps,
-                                      (self.frames[0].shape[1], self.frames[0].shape[0]))
+        self.writer = cv2.VideoWriter(output, fourcc, fps,
+                                      (self.frames[0].shape[1], self.frames[0].shape[0]), True)
         self.queue = Queue()
 
         for i in range(len(self.frames), 0, -1):
