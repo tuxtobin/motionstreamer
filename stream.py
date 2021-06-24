@@ -112,11 +112,11 @@ def detector_video_frame(rotate, flip, output, background, buffer_size, min_area
                         path = os.path.join(output, timestamp.strftime("%Y-%m-%d"))
                         if not os.path.isdir(path):
                             os.mkdir(path)
-                        path = os.path.join(path, "detect_" + timestamp.strftime("%H-%M-%S"))
+                        path = os.path.join(path, "detect_" + timestamp.strftime("%H") + "h")
                         if not os.path.isdir(path):
                             os.mkdir(path)
-                        filename = os.path.join(path, timestamp.strftime("%H-%M-%S") + ".avi")
-                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 3)
+                        filename = os.path.join(path, "detect_" + timestamp.strftime("%H-%M-%S") + ".avi")
+                        bf.start(filename, cv2.VideoWriter_fourcc(*'MJPG'), 20)
                         print("{} - Start Recording".format(timestamp.strftime("%Y-%m-%d %H:%M:%S")))
 
         # if there had been movement increment continuous frame counter
